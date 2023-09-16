@@ -23,32 +23,18 @@
         {
             foreach (var card in cards)
             {
-                <Draggable @key="card.Id" @bind-X:after="() => XChanged(card)" @bind-Y:after="() => YChanged(card)" @bind-X="card.X" @bind-Y="card.Y">
-                    <image width="96px" height="133px" href="images/@card.Image" />
-                </Draggable>
+                <Card @key="card.Id" GameCard="card" CardMoved="OnCardMoved" />
             }
         }
     </svg>
 </div>
 
 @code {
-    //GameCard card = new GameCard();
-
     [Parameter]
     public Guid GameId { get; set; }
 
     List<GameCard>? cards;
     private HubConnection? hubConnection;
-
-    private async Task XChanged(GameCard card)
-    {
-        await Send(card);
-    }
-
-    private async Task YChanged(GameCard card)
-    {
-        await Send(card);
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,7 +45,6 @@
         hubConnection.On<IEnumerable<GameCard>>("InitialState", (cards) =>
         {
             this.cards = new List<GameCard>(cards);
-            //messages.Add(encodedMsg);
             StateHasChanged();
         });
 
@@ -68,11 +53,16 @@
             var card = this.cards.FirstOrDefault(n => n.Id == id);
             card.X = x;
             card.Y = y;
-            //messages.Add(encodedMsg);
+
             StateHasChanged();
         });
 
         await hubConnection.StartAsync();
+    }
+
+    private Task OnCardMoved(GameCard card)
+    {
+        return Send(card);
     }
 
     private async Task Send(GameCard card)

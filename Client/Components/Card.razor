@@ -1,0 +1,28 @@
+﻿@using Crummy.Web.Shared;
+
+<Draggable @key="GameCard .Id"
+    @bind-X:after="XChanged"
+    @bind-Y:after="YChanged"
+    @bind-X="GameCard.X"
+    @bind-Y="GameCard.Y">
+    <image width="96px" height="133px" href="images/@GameCard.Image" />
+</Draggable>
+
+@code {
+    [Parameter]
+    public required GameCard GameCard { get; set; }
+
+    [Parameter]
+    public EventCallback<GameCard> CardMoved { get; set; }
+
+    private async Task XChanged()
+    {
+        await CardMoved.InvokeAsync(GameCard);
+    }
+
+    private async Task YChanged()
+    {
+        await CardMoved.InvokeAsync(GameCard);
+    }
+
+}

@@ -1,7 +1,10 @@
 ﻿@inject IMouseService mouseSrv;
 
-<g class="game-card" transform="translate(@x, @y)" cursor=@cursor @onmousedown=OnDown
-   @onmousedown:stopPropagation="true">
+<g class="game-card" 
+        transform="translate(@x, @y)" 
+        cursor=@cursor 
+        @onmousedown=OnDown
+        @onmousedown:stopPropagation="true">
     @ChildContent
 </g>
 
@@ -40,7 +43,6 @@
         base.OnInitialized();
     }
 
-
     string cursor = "grab";
     bool _isDown;
     bool isDown
@@ -55,6 +57,7 @@
 
     double cursorX;
     double cursorY;
+
     void OnDown(MouseEventArgs e)
     {
         isDown = true;
