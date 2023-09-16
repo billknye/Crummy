@@ -1,5 +1,4 @@
-﻿using Crummy.Web.Shared;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 
 namespace Crummy.Web.Server;
 
@@ -44,52 +43,5 @@ public class GameHub : Hub
         card.Y = y;
 
         await Clients.Group(gameId.ToString()).SendAsync("Update", id, x, y);
-    }
-}
-
-public class GameStateManager
-{
-    private Dictionary<Guid, GameState> gameStates;
-
-    public GameStateManager()
-    {
-        gameStates = new Dictionary<Guid, GameState>();
-    }
-
-    public GameState GetGameState(Guid id)
-    {
-        if (gameStates.TryGetValue(id, out var gameState))
-        {
-            return gameState;
-        }
-
-        gameState = new GameState
-        {
-        };
-
-        gameStates[id] = gameState;
-        return gameState;
-    }
-}
-
-public class GameState
-{
-    List<GameCard>? cards;
-
-    public IEnumerable<GameCard>? Cards => cards;
-
-    public GameState()
-    {
-        cards = new List<GameCard>();
-
-        for (int i = 0; i < 52; i++)
-        {
-            cards.Add(new GameCard
-            {
-                Id = i,
-                X = i % 10 * 100,
-                Y = i / 10 * 150
-            });
-        }
     }
 }

@@ -9,11 +9,22 @@ public class GameCard
 
     public double Y { get; set; }
 
-    public Value Value => (Value)(Id % 13 + 1);
+    public Value? Value { get; set; }
 
-    public Suit Suit => (Suit)(Id / 13);
+    public Suit? Suit { get; set; }
 
-    public string Image => $"Classic/{Suit.ToString()[0]}{(int)Value:00}.png";
+    public string Image
+    {
+        get
+        {
+            if (Value is not null && Suit is not null)
+            {
+                return $"Classic/{Suit.ToString()[0]}{(int)Value:00}.png";
+            }
+
+            return $"Card-Back-03.png";
+        }
+    }
 }
 
 public enum Value
@@ -33,7 +44,7 @@ public enum Value
     King = 13
 }
 
-public enum Suit : ushort
+public enum Suit
 {
     Club = 0,
     Diamonds = 1,
