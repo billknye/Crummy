@@ -1,0 +1,97 @@
+﻿@page "/{gameId:guid}"
+@using Crummy.Web.Shared;
+@using Microsoft.AspNetCore.SignalR.Client;
+@using Crummy.Web.Client;
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+@inject MouseService mouseSrv;
+
+<div style="width: 100vw; height: 100vh;">
+
+    <svg style="width: 100vw; height: 100vh;"
+         xmlns="http://www.w3.org/2000/svg"
+         @onmousemove=@(e => mouseSrv.FireMove(this, e))
+         @onmouseup=@(e => mouseSrv.FireUp(this, e))
+         @onmouseleave=@(e => mouseSrv.FireLeave(this, e))>
+
+        @if (cards is null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            foreach (var card in cards)
+            {
+                <Draggable @key="card.Id" @bind-X:after="() => XChanged(card)" @bind-Y:after="() => YChanged(card)" @bind-X="card.X" @bind-Y="card.Y">
+                    <image width="96px" height="133px" href="images/@card.Image" />
+                </Draggable>
+            }
+        }
+    </svg>
+</div>
+
+@code {
+    //GameCard card = new GameCard();
+
+    [Parameter]
+    public Guid GameId { get; set; }
+
+    List<GameCard>? cards;
+    private HubConnection? hubConnection;
+
+    private async Task XChanged(GameCard card)
+    {
+        await Send(card);
+    }
+
+    private async Task YChanged(GameCard card)
+    {
+        await Send(card);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri($"/hub?gameId={GameId}"))
+            .Build();
+
+        hubConnection.On<IEnumerable<GameCard>>("InitialState", (cards) =>
+        {
+            this.cards = new List<GameCard>(cards);
+            //messages.Add(encodedMsg);
+            StateHasChanged();
+        });
+
+        hubConnection.On<int, double, double>("Update", (id, x, y) =>
+        {
+            var card = this.cards.FirstOrDefault(n => n.Id == id);
+            card.X = x;
+            card.Y = y;
+            //messages.Add(encodedMsg);
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task Send(GameCard card)
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("Update", card.Id, card.X, card.Y);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+}
