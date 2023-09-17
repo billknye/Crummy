@@ -11,10 +11,16 @@ public partial class Play : IAsyncDisposable, IGameHubClient
     [Parameter]
     public Guid GameId { get; set; }
 
-    List<GameCard>? cards;
     private HubConnection? hubConnection;
     private IGameHubServer? server;
     private IDisposable? connectionRegistration;
+
+    GameStage? stage;
+
+    List<GamePlayerDto>? players;
+    string? playerNameInput;
+
+    List<GameCard>? cards;
 
     protected override async Task OnInitializedAsync()
     {
@@ -31,6 +37,8 @@ public partial class Play : IAsyncDisposable, IGameHubClient
             await localStorage.SetItemAsync("player-details", playerDetails);
         }
 
+        playerNameInput = playerDetails.Name;
+
         hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri($"/hub?gameId={GameId}&playerId={playerDetails.PlayerId}&name={WebUtility.UrlEncode(playerDetails.Name)}"))
             .Build();
@@ -38,6 +46,16 @@ public partial class Play : IAsyncDisposable, IGameHubClient
         server = hubConnection.CreateHubProxy<IGameHubServer>();
         connectionRegistration = hubConnection.Register<IGameHubClient>(this);
         await hubConnection.StartAsync();
+    }
+
+    private async Task NameChanged()
+    {
+        await (server?.UpdatePlayerName(playerNameInput) ?? Task.CompletedTask);
+    }
+
+    private async Task Submit()
+    {
+
     }
 
     public async Task InitialState(IEnumerable<GameCard> cards)
@@ -79,6 +97,34 @@ public partial class Play : IAsyncDisposable, IGameHubClient
         }
 
         connectionRegistration?.Dispose();
+    }
+
+    public async Task OnGameJoined(GameStage stage, int id, IEnumerable<GamePlayerDto> players)
+    {
+        Console.WriteLine($"OnGameJoined {stage}");
+
+        this.stage = stage;
+        this.players = new List<GamePlayerDto>(players);
+    }
+
+    public async Task OnPlayerJoined(int id, string name)
+    {
+        Console.WriteLine($"OnPlayerJoined {id} {name}");
+
+        players?.Add(new GamePlayerDto { Name = name, Id = id });
+        StateHasChanged();
+    }
+
+    public async Task PlayerNameUpdated(int id, string name)
+    {
+        Console.WriteLine($"Player updated name {id} {name}");
+
+        var player = players?.FirstOrDefault(n => n.Id == id);
+        if (player != null)
+        {
+            player.Name = name;
+            StateHasChanged();
+        }
     }
 
     class PlayerDetails

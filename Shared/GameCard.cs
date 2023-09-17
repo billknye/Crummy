@@ -1,6 +1,5 @@
 namespace Crummy.Web.Shared;
 
-
 public record GameCard
 {
     public int Id { get; set; }
@@ -11,9 +10,9 @@ public record GameCard
 
     public double Angle { get; set; }
 
-    public Value? Value { get; set; }
+    public CardValue? Value { get; set; }
 
-    public Suit? Suit { get; set; }
+    public CardSuit? Suit { get; set; }
 
     public string Image
     {
@@ -29,38 +28,25 @@ public record GameCard
     }
 }
 
-public enum Value
+public record GameStateDto
 {
-    Ace = 1,
-    Two = 2,
-    Three = 3,
-    Four = 4,
-    Five = 5,
-    Six = 6,
-    Seven = 7,
-    Eight = 8,
-    Nine = 9,
-    Ten = 10,
-    Jack = 11,
-    Queen = 12,
-    King = 13
+    public GameStage Stage { get; init; }
+
+
 }
 
-public enum Suit
+
+
+public enum GameStage
 {
-    Club = 0,
-    Diamonds = 1,
-    Heart = 2,
-    Spade = 3
+    Lobby = 0,
+    Playing = 1,
+    PostGame = 2
 }
 
-public interface IGameHubClient
+public record GamePlayerDto
 {
-    Task InitialState(IEnumerable<GameCard> cards);
-    Task Update(int id, double x, double y);
-}
+    public int Id { get; set; }
 
-public interface IGameHubServer
-{
-    Task Update(int id, double x, double y);
+    public required string Name { get; set; }
 }

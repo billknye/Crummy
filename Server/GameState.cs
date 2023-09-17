@@ -1,24 +1,35 @@
 ﻿using Crummy.Web.Shared;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Crummy.Web.Server;
 
 public class GameState
 {
-    List<GameCard> cards;
+    private readonly ILogger<GameState> logger;
+    private readonly IHubContext<GameHub, IGameHubClient> hubContext;
+    private readonly Guid gameId;
 
+    List<GameCard> cards;
     List<Player> players;
+
+    int playerIndex;
+    private GameStage stage;
 
     public IEnumerable<GameCard>? Cards => cards;
 
-    public GameState()
+    public GameState(
+        ILogger<GameState> logger,
+        IHubContext<GameHub, IGameHubClient> hubContext,
+        Guid gameId)
     {
         cards = new List<GameCard>();
         players = new List<Player>();
-
-        StartGame();
+        this.logger = logger;
+        this.hubContext = hubContext;
+        this.gameId = gameId;
     }
 
-    public Player Join(Guid playerId, string name)
+    public async Task Join(Guid playerId, string name, string connectionId, IGameHubClient client)
     {
         if (players.Count >= 4)
         {
@@ -28,29 +39,82 @@ public class GameState
         var existing = players.FirstOrDefault(n => n.PlayerId == playerId);
         if (existing != null)
         {
-            return existing;
+            existing.Client = client;
+            await SendOnGameJoined(existing);
+        }
+        else
+        {
+            if (stage != GameStage.Lobby)
+            {
+                throw new InvalidOperationException("Can only join when in lobby stage.");
+            }
+
+            var player = new Player
+            {
+                PlayerId = playerId,
+                Name = name,
+                Client = client,
+                Id = ++playerIndex,
+                ConnectionId = connectionId,
+            };
+
+            players.Add(player);
+
+            await SendOnGameJoined(player);
+            await hubContext.Clients.GroupExcept(gameId.ToString(), player.ConnectionId).OnPlayerJoined(player.Id, player.Name);
+        }
+    }
+
+    private async Task SendOnGameJoined(Player player)
+    {
+        await player.Client.OnGameJoined(stage, player.Id, players.Select(n => new GamePlayerDto
+        {
+            Name = n.Name,
+            Id = n.Id,
+        }));
+
+        await hubContext.Groups.AddToGroupAsync(player.ConnectionId, gameId.ToString());
+        await hubContext.Clients.Client(player.ConnectionId).InitialState(Cards);
+    }
+
+    public async Task UpdatePlayerName(string connectionId, string name)
+    {
+        if (stage != GameStage.Lobby)
+        {
+            throw new InvalidOperationException("Must be in lobby stage to change name.");
         }
 
-        var player = new Player
-        {
-            PlayerId = playerId,
-            Name = name,
-        };
+        var player = players.FirstOrDefault(n => n.ConnectionId == connectionId);
+        player.Name = name;
 
-        players.Add(player);
-        return player;
+        await hubContext.Clients.Group(gameId.ToString()).PlayerNameUpdated(player.Id, player.Name);
     }
 
     public void StartGame()
     {
+        if (players.Count < 3)
+        {
+            throw new InvalidOperationException("Not enough players, minimum 2");
+        }
+
+        if (players.Count > 4)
+        {
+            throw new InvalidOperationException("Too many players, maximum 4");
+        }
+
+        if (players.Any(n => !n.Ready))
+        {
+            throw new InvalidOperationException("Not all players ready.");
+        }
+
         cards.Clear();
 
         for (int i = 0; i < 52; i++)
         {
             cards.Add(new GameCard
             {
-                Suit = (Suit)(i / 14),
-                Value = (Value)(i % 13 + 1)
+                Suit = (CardSuit)(i / 14),
+                Value = (CardValue)(i % 13 + 1)
             });
         }
 
@@ -79,12 +143,46 @@ public class GameState
         }
     }
 
+    internal async Task MoveCard(int id, double x, double y)
+    {
+        var card = Cards.FirstOrDefault(c => c.Id == id);
+
+        card = card with
+        {
+            X = x,
+            Y = y
+        };
+
+        await hubContext.Clients.Group(gameId.ToString()).Update(id, x, y);
+    }
+
+    internal async Task OnDisconnect(string connectionId, Exception? exception)
+    {
+        var player = players.First(n => n.ConnectionId == connectionId);
+        logger.LogInformation("Player {PlayerId} With Connection {ConnectionId} Disconnected From Game {GameId}", player.PlayerId, connectionId, gameId);
+    }
+
     public class Player
     {
+        /// <summary>
+        /// Unique value for rejoining sessions, stored in local storage.
+        /// </summary>
         public Guid PlayerId { get; set; }
 
-        public string? Name { get; set; }
+        /// <summary>
+        /// Game specific player index.
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// The signalr connection id.
+        /// </summary>
+        public required string ConnectionId { get; set; }
+
+        public required string Name { get; set; }
 
         public bool Ready { get; set; }
+
+        public required IGameHubClient Client { get; set; }
     }
 }

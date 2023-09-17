@@ -11,6 +11,23 @@
 
 @inject MouseService mouseSrv;
 
+@if (stage == GameStage.Lobby)
+{
+    <EditForm Model="@playerNameInput" OnSubmit="Submit">
+        <InputText @bind-Value="playerNameInput" @bind-Value:after="NameChanged" />
+    </EditForm>
+
+    <table>
+    @foreach (var player in players)
+    {
+        <tr>
+            <td>@player.Name</td>
+        </tr>
+    }
+    </table>
+}
+else if (stage == GameStage.Playing)
+{
 <div style="width: 100vw; height: 100vh;">
 
     <svg style="width: 100vw; height: 100vh;"
@@ -32,3 +49,4 @@
         }
     </svg>
 </div>
+}
