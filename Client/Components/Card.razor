@@ -5,7 +5,7 @@
     @bind-Y:after="YChanged"
     @bind-X="GameCard.X"
     @bind-Y="GameCard.Y">
-    <image width="96px" height="133px" href="images/@GameCard.Image" />
+    <image width="96px" height="133px" transform="rotate(@(GameCard.Angle * 180 / Math.PI))" href="images/@GameCard.Image" />
 </Draggable>
 
 @code {

@@ -1,13 +1,15 @@
 namespace Crummy.Web.Shared;
 
 
-public class GameCard
+public record GameCard
 {
     public int Id { get; set; }
 
     public double X { get; set; }
 
     public double Y { get; set; }
+
+    public double Angle { get; set; }
 
     public Value? Value { get; set; }
 
@@ -50,4 +52,15 @@ public enum Suit
     Diamonds = 1,
     Heart = 2,
     Spade = 3
+}
+
+public interface IGameHubClient
+{
+    Task InitialState(IEnumerable<GameCard> cards);
+    Task Update(int id, double x, double y);
+}
+
+public interface IGameHubServer
+{
+    Task Update(int id, double x, double y);
 }

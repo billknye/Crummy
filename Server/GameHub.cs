@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Crummy.Web.Shared;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Crummy.Web.Server;
 
-public class GameHub : Hub
+public class GameHub : Hub<IGameHubClient>
 {
     private readonly GameStateManager gameStateManager;
 
@@ -19,11 +20,17 @@ public class GameHub : Hub
 
         var query = httpContext.Request.Query;
         var gameId = Guid.Parse(query["gameId"]);
+        var playerId = Guid.Parse(query["playerId"]);
+        var name = query["name"];
 
         var game = gameStateManager.GetGameState(gameId);
 
+        var player = game.Join(playerId, name);
+
         await Groups.AddToGroupAsync(Context.ConnectionId, gameId.ToString());
-        await Clients.Caller.SendAsync("InitialState", game.Cards);
+
+        await Clients.Caller.InitialState(game.Cards);
+        //await Clients.Caller.SendAsync("InitialState", game.Cards);
     }
 
     public async Task Update(int id, double x, double y)
@@ -39,9 +46,14 @@ public class GameHub : Hub
 
         var card = game.Cards.FirstOrDefault(c => c.Id == id);
 
-        card.X = x;
-        card.Y = y;
+        card = card with
+        {
+            X = x,
+            Y = y
+        };
 
-        await Clients.Group(gameId.ToString()).SendAsync("Update", id, x, y);
+        await Clients.Group(gameId.ToString()).Update(id, x, y);
+
+        //await Clients.Group(gameId.ToString()).SendAsync("Update", id, x, y);
     }
 }

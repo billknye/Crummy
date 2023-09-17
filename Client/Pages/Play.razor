@@ -1,9 +1,13 @@
 ﻿@page "/{gameId:guid}"
+@using Blazored.LocalStorage;
 @using Crummy.Web.Shared;
 @using Microsoft.AspNetCore.SignalR.Client;
 @using Crummy.Web.Client;
+@using System.Net;
+@using TypedSignalR.Client;
+
 @inject NavigationManager Navigation
-@implements IAsyncDisposable
+@inject ILocalStorageService localStorage
 
 @inject MouseService mouseSrv;
 
@@ -11,9 +15,9 @@
 
     <svg style="width: 100vw; height: 100vh;"
          xmlns="http://www.w3.org/2000/svg"
-         @onmousemove=@(e => mouseSrv.FireMove(this, e))
-         @onmouseup=@(e => mouseSrv.FireUp(this, e))
-         @onmouseleave=@(e => mouseSrv.FireLeave(this, e))>
+    @onmousemove=@(e => mouseSrv.FireMove(this, e))
+    @onmouseup=@(e => mouseSrv.FireUp(this, e))
+    @onmouseleave=@(e => mouseSrv.FireLeave(this, e))>
 
         @if (cards is null)
         {
@@ -28,60 +32,3 @@
         }
     </svg>
 </div>
-
-@code {
-    [Parameter]
-    public Guid GameId { get; set; }
-
-    List<GameCard>? cards;
-    private HubConnection? hubConnection;
-
-    protected override async Task OnInitializedAsync()
-    {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri($"/hub?gameId={GameId}"))
-            .Build();
-
-        hubConnection.On<IEnumerable<GameCard>>("InitialState", (cards) =>
-        {
-            this.cards = new List<GameCard>(cards);
-            StateHasChanged();
-        });
-
-        hubConnection.On<int, double, double>("Update", (id, x, y) =>
-        {
-            var card = this.cards.FirstOrDefault(n => n.Id == id);
-            card.X = x;
-            card.Y = y;
-
-            StateHasChanged();
-        });
-
-        await hubConnection.StartAsync();
-    }
-
-    private Task OnCardMoved(GameCard card)
-    {
-        return Send(card);
-    }
-
-    private async Task Send(GameCard card)
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.SendAsync("Update", card.Id, card.X, card.Y);
-        }
-    }
-
-    public bool IsConnected =>
-        hubConnection?.State == HubConnectionState.Connected;
-
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
-    }
-
-}

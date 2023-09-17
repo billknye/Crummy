@@ -4,13 +4,46 @@ namespace Crummy.Web.Server;
 
 public class GameState
 {
-    List<GameCard>? cards;
+    List<GameCard> cards;
+
+    List<Player> players;
 
     public IEnumerable<GameCard>? Cards => cards;
 
     public GameState()
     {
         cards = new List<GameCard>();
+        players = new List<Player>();
+
+        StartGame();
+    }
+
+    public Player Join(Guid playerId, string name)
+    {
+        if (players.Count >= 4)
+        {
+            throw new InvalidOperationException("game full");
+        }
+
+        var existing = players.FirstOrDefault(n => n.PlayerId == playerId);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var player = new Player
+        {
+            PlayerId = playerId,
+            Name = name,
+        };
+
+        players.Add(player);
+        return player;
+    }
+
+    public void StartGame()
+    {
+        cards.Clear();
 
         for (int i = 0; i < 52; i++)
         {
@@ -41,8 +74,17 @@ public class GameState
         for (int i = 0; i < cards.Count; i++)
         {
             cards[i].Id = i;
-            cards[i].X = i % 10 * 100;
-            cards[i].Y = i / 10 * 150;
+            cards[i].X = 20 + i * 16;
+            cards[i].Y = 100;
         }
+    }
+
+    public class Player
+    {
+        public Guid PlayerId { get; set; }
+
+        public string? Name { get; set; }
+
+        public bool Ready { get; set; }
     }
 }
